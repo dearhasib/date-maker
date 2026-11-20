@@ -1,0 +1,96 @@
+@import '@fontsource-variable/dm-sans/wght.css';
+@import '@fontsource-variable/fraunces/wght.css';
+@import '@fontsource-variable/fraunces/wght-italic.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #1f2937;
+  background: #faf6f0;
+  font-family: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: #faf6f0;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0;
+  overflow-x: hidden;
+  background: #faf6f0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: #1f2937;
+  background: #f9c8bd;
+}
+
+:focus-visible {
+  outline: 2px solid #e85d4a;
+  outline-offset: 3px;
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-[10px] font-semibold uppercase tracking-[0.2em] text-muted;
+  }
+
+  .pill-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-white/80 px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted shadow-[0_2px_8px_rgba(70,52,38,0.03)] backdrop-blur;
+  }
+
+  .field-shell {
+    @apply relative flex h-[52px] items-center rounded-2xl border border-line bg-white px-3 shadow-[0_1px_0_rgba(70,52,38,0.02)] transition duration-200 sm:px-3.5;
+  }
+
+  .field-shell:focus-within {
+    border-color: rgba(232, 93, 74, 0.6);
+    box-shadow:
+      0 0 0 4px rgba(232, 93, 74, 0.08),
+      0 1px 0 rgba(70, 52, 38, 0.02);
+  }
+
+  .primary-button {
+    @apply inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-[14px] font-semibold text-white shadow-coral transition duration-300 hover:bg-coral-dark hover:shadow-[0_11px_26px_rgba(232,93,74,0.26)] disabled:cursor-not-allowed disabled:bg-[#e7ece2] disabled:text-[#89927f] disabled:shadow-none;
+  }
+
+  .secondary-button {
+    @apply inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full border border-line bg-white px-5 text-[13px] font-semibold text-ink transition duration-200 hover:border-sage hover:bg-sage-pale;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
