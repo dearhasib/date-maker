@@ -40,8 +40,18 @@ function PickerField({
   function openPicker() {
     const input = inputRef.current
     if (!input) return
+
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker()
+        return
+      } catch {
+        // Fall back to focus for Safari versions that reject showPicker().
+      }
+    }
+
     try {
-      input.showPicker?.()
+      input.focus({ preventScroll: true })
     } catch {
       input.focus()
     }
@@ -68,6 +78,7 @@ function PickerField({
         type={type}
         value={value}
         min={min}
+        step={type === 'time' ? 60 : undefined}
         onChange={(event) => onChange(event.target.value)}
         onClick={(event) => {
           event.stopPropagation()
@@ -79,8 +90,9 @@ function PickerField({
             openPicker()
           }
         }}
-        className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-2xl border-0 bg-transparent p-0 text-base text-transparent opacity-0 outline-none"
+        className="native-date-time-input absolute inset-0 h-full min-h-[52px] w-full cursor-pointer appearance-none rounded-2xl border-0 bg-transparent p-0 text-[16px] text-transparent opacity-0 outline-none"
         aria-label={label}
+        autoComplete="off"
         required
       />
     </span>

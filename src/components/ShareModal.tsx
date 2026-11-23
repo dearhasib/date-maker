@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { Badge } from './Badge'
+import { ShareLinkBox } from './ShareLinkBox'
 import { copyToClipboard, shareOrCopy } from '../lib/clipboard'
 import { buildProposalUrl } from '../lib/share'
 import type { ToastData } from './Toast'
@@ -17,6 +18,10 @@ import type { ToastData } from './Toast'
 interface ShareModalProps {
   onClose: () => void
   notify: (message: string, tone?: ToastData['tone']) => void
+}
+
+function limitName(value: string): string {
+  return Array.from(value).slice(0, 40).join('')
 }
 
 export function ShareModal({ onClose, notify }: ShareModalProps) {
@@ -59,7 +64,7 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
       notify('Invite link copied — go make someone smile 💌')
       window.setTimeout(() => setCopied(false), 2300)
     } else {
-      notify('Could not copy the link. Try selecting it instead.', 'error')
+      notify('Copy was blocked — select the link above and copy it.', 'error')
     }
   }
 
@@ -86,8 +91,8 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#2c211a]/20 px-4 py-6 backdrop-blur-[6px]"
-      onMouseDown={(event) => {
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-contain bg-[#2c211a]/20 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] backdrop-blur-[6px] sm:items-center sm:py-6"
+      onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
       role="dialog"
@@ -102,7 +107,7 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
         className="relative my-auto w-full max-w-[420px] rounded-[28px] border border-white/70 bg-white p-6 text-left shadow-[0_30px_80px_rgba(60,40,25,0.18)] sm:p-7"
-        onMouseDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <button
           type="button"
@@ -142,21 +147,24 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
                   <span className="eyebrow mb-2 block text-[9px]">From</span>
                   <input
                     value={from}
-                    onChange={(event) => setFrom(event.target.value.slice(0, 40))}
+                    onChange={(event) => setFrom(limitName(event.target.value))}
                     placeholder="Me"
-                    autoFocus
-                    maxLength={40}
-                    className="h-12 w-full rounded-2xl border border-line bg-white px-3.5 text-[13px] font-medium text-ink outline-none transition placeholder:text-muted/50 focus:border-coral/60 focus:shadow-[0_0_0_4px_rgba(232,93,74,0.08)]"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                    spellCheck={false}
+                    className="min-h-[48px] w-full rounded-2xl border border-line bg-white px-3.5 text-[16px] font-medium text-ink outline-none transition placeholder:text-muted/50 focus:border-coral/60 focus:shadow-[0_0_0_4px_rgba(232,93,74,0.08)] sm:text-[13px]"
                   />
                 </label>
                 <label className="block">
                   <span className="eyebrow mb-2 block text-[9px]">To</span>
                   <input
                     value={to}
-                    onChange={(event) => setTo(event.target.value.slice(0, 40))}
+                    onChange={(event) => setTo(limitName(event.target.value))}
                     placeholder="you"
-                    maxLength={40}
-                    className="h-12 w-full rounded-2xl border border-line bg-white px-3.5 text-[13px] font-medium text-ink outline-none transition placeholder:text-muted/50 focus:border-coral/60 focus:shadow-[0_0_0_4px_rgba(232,93,74,0.08)]"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                    spellCheck={false}
+                    className="min-h-[48px] w-full rounded-2xl border border-line bg-white px-3.5 text-[16px] font-medium text-ink outline-none transition placeholder:text-muted/50 focus:border-coral/60 focus:shadow-[0_0_0_4px_rgba(232,93,74,0.08)] sm:text-[13px]"
                   />
                 </label>
 
@@ -203,15 +211,12 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
                 </motion.span>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-line bg-cream/70 p-2">
-                <input
-                  readOnly
-                  value={generated}
-                  aria-label="Your proposal link"
-                  onFocus={(event) => event.currentTarget.select()}
-                  className="h-10 w-full bg-transparent px-2 text-[11px] font-medium text-muted outline-none"
-                />
-              </div>
+              <ShareLinkBox
+                value={generated}
+                label="Your proposal link"
+                hint="If the copy or share buttons are blocked, select the link above manually."
+                className="mt-5"
+              />
 
               <div className="mt-3 flex flex-col gap-2.5">
                 <button

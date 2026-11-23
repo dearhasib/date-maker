@@ -68,7 +68,7 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden bg-cream px-4 py-8 sm:px-6 sm:py-12">
+      <div className="app-shell relative flex flex-col items-center justify-center overflow-hidden bg-cream px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(3rem,env(safe-area-inset-bottom))] sm:pt-[max(3rem,env(safe-area-inset-top))]">
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_8%,rgba(244,196,188,0.3),transparent_28%),radial-gradient(circle_at_88%_92%,rgba(197,214,186,0.28),transparent_30%),linear-gradient(145deg,#FBF8F2_0%,#FAF6F0_48%,#F8F2EA_100%)]" />
           <div className="absolute -left-24 top-[-14%] h-[28rem] w-[28rem] animate-soft-pulse rounded-full bg-[#F3C4B8]/15 blur-3xl" />
@@ -125,7 +125,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5, duration: 0.5 }}
-            className="relative z-10 mt-6 flex flex-col items-center gap-2 pb-[env(safe-area-inset-bottom)] text-center"
+            className="relative z-10 mt-6 flex flex-col items-center gap-2 text-center"
           >
             <p className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.24em] text-muted/60">
               <Sparkles size={10} strokeWidth={1.8} aria-hidden="true" />

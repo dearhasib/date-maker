@@ -26,8 +26,9 @@ You can also create a custom proposal link from the footer and choose the sender
 - Disabled submit button until the plan is complete
 - URL-encoded proposal and response links
 - Sender-side response view with an `.ics` calendar download
-- Copy-to-clipboard fallback and native Web Share support
-- Keyboard focus states and reduced-motion support
+- Native Web Share, Clipboard API, legacy copy fallbacks, and a visible selectable link when both are blocked
+- Touch, mouse, and pointer dodging for the “No” button at small screen sizes
+- Keyboard focus states, safe-area spacing, and reduced-motion support
 - Bundled Fraunces and DM Sans fonts, so the app does not depend on Google Fonts at runtime
 
 ## Tech stack
@@ -93,14 +94,15 @@ The build output is written to `dist/`. `npm run preview` serves that production
 1. Open the app and tap **YES**.
 2. Choose a day, time, and activity.
 3. Select **Seal it with a letter 💌**.
-4. On the letter screen, choose **Send it back** to use your device's share sheet, or **Copy response link**.
-5. Send the copied link to the person who proposed.
+4. On the letter screen, choose **Share the good news 💌** to use your device's share sheet or clipboard, or **Copy response link**.
+5. If sharing and copying are both blocked, select **Show link** and copy the visible link manually.
+6. Send the link to the person who proposed.
 
 When they open it, they see the confirmed details and can add the date to their calendar.
 
 ### Create a custom proposal link
 
-Select **Create your own proposal** in the footer. Enter the two names and generate a link. If either field is left blank, the app uses the generic defaults **Me** and **you**.
+Select **Create your own proposal** in the footer. Enter the two names and generate a link. If either field is left blank, the app uses the generic defaults **Me** and **you**. If the share sheet or clipboard is blocked, the generated link stays visible in a selectable box.
 
 The proposal link looks like this:
 
@@ -125,7 +127,7 @@ https://your-site.example/?reply=1&from=you&to=Me&date=2026-12-24&time=19%3A30&p
 | `time` | 24-hour time in `HH:MM` format |
 | `plan` | One of `coffee`, `movie`, `dinner`, `walk`, `drinks`, or `surprise` |
 
-Names are trimmed to 40 characters. Invalid dates, times, or plan IDs do not produce a response view.
+Names are normalized, trimmed, stripped of control characters, and limited to 40 Unicode characters. Invalid dates, times, or plan IDs do not produce a response view.
 
 ## Privacy and security
 
@@ -179,7 +181,7 @@ date-maker/
 ├─ docs/
 │  └─ preview.png
 ├─ src/
-│  ├─ components/     # Card, badge, flower, petals, toast, share modal
+│  ├─ components/     # Card, badge, flower, petals, toast, share modal, link box
 │  ├─ lib/            # URL sharing, date formatting, plans, confetti, clipboard
 │  ├─ steps/          # Ask, confirmation, planner, letter, reply screens
 │  ├─ App.tsx         # Flow state and page shell
@@ -208,7 +210,7 @@ date-maker/
 
 ## Browser support
 
-The app works in current versions of Chrome, Edge, Firefox, and Safari. Clipboard access and native sharing depend on browser support; the app includes copy fallbacks where possible.
+The app is designed for current iOS Safari, Android browsers, desktop Chrome, Edge, Firefox, and Safari, plus common in-app browsers. Clipboard access and native sharing depend on browser support and permissions; when either is blocked, the app falls back to legacy copy methods and finally a visible, selectable link box.
 
 ---
 

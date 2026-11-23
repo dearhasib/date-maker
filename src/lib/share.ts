@@ -13,7 +13,18 @@ export interface SharedState {
 }
 
 function cleanName(value: string | null): string {
-  return (value ?? '').replace(/\s+/g, ' ').trim().slice(0, 40)
+  const normalized = (value ?? '')
+    .normalize('NFC')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // Slice by Unicode code point rather than UTF-16 unit so an emoji in a name
+  // is never cut in half. Drop dangling joiners left by a truncated sequence.
+  return Array.from(normalized)
+    .slice(0, 40)
+    .join('')
+    .replace(/[\u200D\uFE0F]+$/u, '')
 }
 
 function readSelection(params: URLSearchParams): PlanSelection | null {

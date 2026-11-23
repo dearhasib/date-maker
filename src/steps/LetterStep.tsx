@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Check, Copy, Heart, Link2, Pencil, Send } from 'lucide-react'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
+import { ShareLinkBox } from '../components/ShareLinkBox'
 import { copyToClipboard, shareOrCopy } from '../lib/clipboard'
 import {
   formatDateLong,
@@ -29,6 +30,7 @@ export function LetterStep({
   notify,
 }: LetterStepProps) {
   const [copied, setCopied] = useState(false)
+  const [showLink, setShowLink] = useState(false)
   const copyTimer = useRef<number | undefined>(undefined)
   const reduceMotion = useReducedMotion()
   const plan = getPlan(selection.plan)
@@ -58,7 +60,8 @@ export function LetterStep({
       if (copyTimer.current) window.clearTimeout(copyTimer.current)
       copyTimer.current = window.setTimeout(() => setCopied(false), 2400)
     } else {
-      notify('Could not copy the link. Please try again.', 'error')
+      setShowLink(true)
+      notify('Copy was blocked — select the link below and copy it.', 'error')
     }
   }
 
@@ -75,7 +78,8 @@ export function LetterStep({
       if (copyTimer.current) window.clearTimeout(copyTimer.current)
       copyTimer.current = window.setTimeout(() => setCopied(false), 2400)
     } else if (result === 'failed') {
-      notify('Could not share the link just yet. Please try copying it.', 'error')
+      setShowLink(true)
+      notify('Sharing was blocked — select the link below instead.', 'error')
     }
   }
 
@@ -159,7 +163,7 @@ export function LetterStep({
               className="primary-button"
             >
               <Send size={15} strokeWidth={2.2} />
-              <span>Send it back</span>
+              <span>Share the good news</span>
               <span aria-hidden="true">💌</span>
             </motion.button>
 
@@ -183,14 +187,34 @@ export function LetterStep({
             The link carries your exact day, time &amp; plan.
           </p>
 
-          <button
-            type="button"
-            onClick={onEdit}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-coral"
-          >
-            <Pencil size={11} strokeWidth={2} />
-            Edit the plan
-          </button>
+          {showLink ? (
+            <ShareLinkBox
+              value={replyUrl}
+              label="Your response link"
+              hint="Copy this link and send it back if the share sheet or clipboard is blocked."
+              className="mt-3"
+            />
+          ) : null}
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <button
+              type="button"
+              onClick={() => setShowLink((visible) => !visible)}
+              aria-expanded={showLink}
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-semibold text-muted transition-colors hover:text-coral"
+            >
+              <Link2 size={11} strokeWidth={2} />
+              {showLink ? 'Hide link' : 'Show link'}
+            </button>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-semibold text-muted transition-colors hover:text-coral"
+            >
+              <Pencil size={11} strokeWidth={2} />
+              Edit the plan
+            </button>
+          </div>
         </div>
       </Card>
     </motion.div>

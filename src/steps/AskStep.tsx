@@ -53,10 +53,183 @@ function intersects(
   )
 }
 
+function distance(a: Point, b: Point): number {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+/**
+ * Finds a dodge target inside the card, clear of headings, the YES button,
+ * the top-right counter, the action row, and the user's pointer. Candidate
+ * points include a deterministic grid so tiny screens never fall through to
+ * an overlapping last-resort position.
+ */
+function pickDodgePosition(
+  card: HTMLDivElement,
+  no: HTMLButtonElement,
+  current: Point | null,
+  pointer?: { x: number; y: number },
+): Point {
+  const cardRect = card.getBoundingClientRect()
+  const noRect = no.getBoundingClientRect()
+  const margin = 16
+  const noWidth = noRect.width
+  const noHeight = noRect.height
+
+  // Keep the button inside the visible viewport as well as inside the card.
+  const visibleLeft = Math.max(margin, -cardRect.left + 8)
+  const visibleRight = Math.min(
+    cardRect.width - noWidth - margin,
+    window.innerWidth - cardRect.left - noWidth - 8,
+  )
+  const maxX = Math.max(margin, visibleRight)
+  const minX = Math.min(visibleLeft, maxX)
+
+  // Leave the bottom action row free while YES grows, and keep the target in
+  // the visible part of the card when the page has been scrolled on a short
+  // mobile screen.
+  const actionLimit = Math.max(
+    margin,
+    cardRect.height - noHeight - 112,
+  )
+  const visibleTop = 8 - cardRect.top
+  const visibleBottom =
+    window.innerHeight - cardRect.top - noHeight - 8
+  const maxY = Math.max(
+    margin,
+    Math.min(actionLimit, visibleBottom > margin ? visibleBottom : actionLimit),
+  )
+  const minY = Math.min(Math.max(margin, visibleTop), maxY)
+
+  const avoid = Array.from(
+    card.querySelectorAll<HTMLElement>('[data-dodge-avoid]'),
+  )
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .map((rect) => ({
+      left: rect.left - cardRect.left,
+      right: rect.right - cardRect.left,
+      top: rect.top - cardRect.top,
+      bottom: rect.bottom - cardRect.top,
+    }))
+
+  // Do not reappear under the current button or the pointer.
+  avoid.push({
+    left: noRect.left - cardRect.left,
+    right: noRect.right - cardRect.left,
+    top: noRect.top - cardRect.top,
+    bottom: noRect.bottom - cardRect.top,
+  })
+  if (pointer && pointer.x > 0 && pointer.y > 0) {
+    avoid.push({
+      left: pointer.x - cardRect.left - 16,
+      right: pointer.x - cardRect.left + 16,
+      top: pointer.y - cardRect.top - 16,
+      bottom: pointer.y - cardRect.top + 16,
+    })
+  }
+
+  // The counter appears in the top-right after a dodge.
+  avoid.push({
+    left: cardRect.width - 154,
+    right: cardRect.width,
+    top: 0,
+    bottom: 58,
+  })
+
+  // Keep the whole action strip clear as YES grows into it.
+  avoid.push({
+    left: 0,
+    right: cardRect.width,
+    top: cardRect.height - 90,
+    bottom: cardRect.height,
+  })
+
+  const isSafe = (candidate: Point, gap: number): boolean => {
+    const box = {
+      left: candidate.x,
+      right: candidate.x + noWidth,
+      top: candidate.y,
+      bottom: candidate.y + noHeight,
+    }
+    return !avoid.some((rect) => intersects(box, rect, gap))
+  }
+
+  const candidates: Point[] = []
+
+  for (let attempt = 0; attempt < 140; attempt += 1) {
+    candidates.push({
+      x: minX + Math.random() * Math.max(0, maxX - minX),
+      y: minY + Math.random() * Math.max(0, maxY - minY),
+    })
+  }
+
+  // A small grid guarantees a usable candidate even when random picks miss.
+  const gridStep = 8
+  for (let y = minY; y <= maxY; y += gridStep) {
+    for (let x = minX; x <= maxX; x += gridStep) {
+      candidates.push({ x, y })
+    }
+  }
+
+  let safeCandidates = candidates.filter((candidate) => isSafe(candidate, 7))
+  if (safeCandidates.length === 0) {
+    safeCandidates = candidates.filter((candidate) => isSafe(candidate, 0))
+  }
+
+  if (safeCandidates.length > 0) {
+    const currentCenter = current
+      ? {
+          x: current.x + noWidth / 2,
+          y: current.y + noHeight / 2,
+        }
+      : null
+
+    if (!currentCenter) {
+      return safeCandidates[Math.floor(Math.random() * safeCandidates.length)]
+    }
+
+    const minimumJump = Math.max(88, noWidth * 1.35)
+    const farEnough = safeCandidates.filter((candidate) => {
+      const candidateCenter = {
+        x: candidate.x + noWidth / 2,
+        y: candidate.y + noHeight / 2,
+      }
+      return distance(candidateCenter, currentCenter) >= minimumJump
+    })
+
+    if (farEnough.length > 0) {
+      return farEnough[Math.floor(Math.random() * farEnough.length)]
+    }
+
+    return safeCandidates.reduce((best, candidate) => {
+      const candidateCenter = {
+        x: candidate.x + noWidth / 2,
+        y: candidate.y + noHeight / 2,
+      }
+      const bestCenter = {
+        x: best.x + noWidth / 2,
+        y: best.y + noHeight / 2,
+      }
+      return distance(candidateCenter, currentCenter) >
+        distance(bestCenter, currentCenter)
+        ? candidate
+        : best
+    })
+  }
+
+  // This is only reachable if the card is smaller than the button. Keep it
+  // bounded rather than clipping outside the card.
+  return {
+    x: Math.min(Math.max(margin, current?.x ?? margin), maxX),
+    y: Math.min(Math.max(minY, current?.y ?? minY), maxY),
+  }
+}
+
 export function AskStep({ onYes }: AskStepProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const noRef = useRef<HTMLButtonElement>(null)
   const lastDodge = useRef(0)
+  const lastTouch = useRef(-Infinity)
   const [dodges, setDodges] = useState(0)
   const [noGone, setNoGone] = useState(false)
   const [noPos, setNoPos] = useState<Point | null>(null)
@@ -88,16 +261,29 @@ export function AskStep({ onYes }: AskStepProps) {
 
     if (yes) {
       const yesRect = yes.getBoundingClientRect()
+      const maxX = Math.max(
+        12,
+        Math.min(
+          cardRect.width - noRect.width - 12,
+          window.innerWidth - cardRect.left - noRect.width - 8,
+        ),
+      )
       setNoPos({
-        x: yesRect.right - cardRect.left + 14,
-        y: yesRect.top - cardRect.top + (yesRect.height - noRect.height) / 2,
+        x: Math.min(
+          maxX,
+          Math.max(12, yesRect.right - cardRect.left + 14),
+        ),
+        y: Math.min(
+          Math.max(12, yesRect.top - cardRect.top + (yesRect.height - noRect.height) / 2),
+          cardRect.height - noRect.height - 12,
+        ),
       })
       return
     }
 
     setNoPos({
-      x: cardRect.width - noRect.width - 24,
-      y: cardRect.height - noRect.height - 40,
+      x: Math.max(12, cardRect.width - noRect.width - 24),
+      y: Math.max(12, cardRect.height - noRect.height - 40),
     })
   }, [])
 
@@ -141,14 +327,10 @@ export function AskStep({ onYes }: AskStepProps) {
       const no = noRef.current
       if (!card || !no || !noPos) return
 
-      const cardRect = card.getBoundingClientRect()
-      const noRect = no.getBoundingClientRect()
-      const maxX = Math.max(14, cardRect.width - noRect.width - 14)
-      const maxY = Math.max(14, cardRect.height - noRect.height - 14)
-      setNoPos({
-        x: Math.min(Math.max(14, noPos.x), maxX),
-        y: Math.min(Math.max(14, noPos.y), maxY),
-      })
+      // Mobile browser chrome changes the viewport height while scrolling.
+      // Re-pick a safe, visible spot instead of letting the button drift out of
+      // view or under reflowed copy.
+      setNoPos(pickDodgePosition(card, no, noPos))
     }
 
     window.addEventListener('resize', handleResize)
@@ -167,124 +349,16 @@ export function AskStep({ onYes }: AskStepProps) {
       const no = noRef.current
       if (!card || !no) return
 
-      const cardRect = card.getBoundingClientRect()
-      const noRect = no.getBoundingClientRect()
-      const margin = 16
-      const maxX = Math.max(margin, cardRect.width - noRect.width - margin)
-      // Keep a clear runway above the action row, even while YES grows.
-      const maxY = Math.max(
-        margin,
-        cardRect.height - noRect.height - 112,
-      )
+      setNoPos(pickDodgePosition(card, no, noPos, pointer))
 
-      const avoid = Array.from(
-        card.querySelectorAll<HTMLElement>('[data-dodge-avoid]'),
-      )
-        .map((element) => element.getBoundingClientRect())
-        .filter((rect) => rect.width > 0 && rect.height > 0)
-        .map((rect) => ({
-          left: rect.left - cardRect.left,
-          right: rect.right - cardRect.left,
-          top: rect.top - cardRect.top,
-          bottom: rect.bottom - cardRect.top,
-        }))
-
-      // Avoid simply re-appearing under the same button or cursor.
-      avoid.push({
-        left: noRect.left - cardRect.left,
-        right: noRect.right - cardRect.left,
-        top: noRect.top - cardRect.top,
-        bottom: noRect.bottom - cardRect.top,
-      })
-      if (pointer && pointer.x > 0 && pointer.y > 0) {
-        avoid.push({
-          left: pointer.x - cardRect.left - 14,
-          right: pointer.x - cardRect.left + 14,
-          top: pointer.y - cardRect.top - 14,
-          bottom: pointer.y - cardRect.top + 14,
-        })
+      const nextDodges = dodges + 1
+      setDodges(nextDodges)
+      if (nextDodges >= MAX_DODGES) {
+        window.setTimeout(() => setNoGone(true), 260)
       }
-
-      // The counter will appear in the top-right after this dodge.
-      avoid.push({
-        left: cardRect.width - 154,
-        right: cardRect.width,
-        top: 0,
-        bottom: 58,
-      })
-
-    // Keep the whole action strip clear as YES will grow into it.
-    avoid.push({
-      left: 0,
-      right: cardRect.width,
-      top: cardRect.height - 90,
-      bottom: cardRect.height,
-    })
-
-    const currentCenter = noPos
-      ? {
-          x: noPos.x + noRect.width / 2,
-          y: noPos.y + noRect.height / 2,
-        }
-      : null
-    const minimumJump = Math.max(88, noRect.width * 1.35)
-
-    function isGoodSpot(candidate: Point): boolean {
-      const box = {
-        left: candidate.x,
-        right: candidate.x + noRect.width,
-        top: candidate.y,
-        bottom: candidate.y + noRect.height,
-      }
-      if (avoid.some((rect) => intersects(box, rect, 7))) return false
-      if (!currentCenter) return true
-
-      const dx = candidate.x + noRect.width / 2 - currentCenter.x
-      const dy = candidate.y + noRect.height / 2 - currentCenter.y
-      return Math.hypot(dx, dy) >= minimumJump
-    }
-
-    let next: Point | null = null
-
-    for (let attempt = 0; attempt < 120; attempt += 1) {
-      const candidate = {
-        x: margin + Math.random() * (maxX - margin),
-        y: margin + Math.random() * (maxY - margin),
-      }
-      if (isGoodSpot(candidate)) {
-        next = candidate
-        break
-      }
-    }
-
-    if (!next) {
-      const fallbacks: Point[] = [
-        { x: margin, y: Math.max(70, cardRect.height * 0.52) },
-        { x: maxX, y: Math.max(70, cardRect.height * 0.48) },
-        { x: margin, y: Math.max(70, cardRect.height * 0.7) },
-        { x: maxX, y: Math.max(70, cardRect.height * 0.68) },
-        { x: cardRect.width / 2 - noRect.width / 2, y: margin },
-      ]
-      next = fallbacks.find(isGoodSpot) ?? null
-    }
-
-    if (!next) {
-      // Last resort: keep the dodge moving by choosing the farthest edge slot.
-      const base = noPos ?? { x: margin, y: margin }
-      next = {
-        x: base.x < cardRect.width / 2 ? maxX : margin,
-        y: Math.min(maxY, Math.max(margin, (base.y + cardRect.height * 0.42) % maxY)),
-      }
-    }
-
-    setNoPos(next)
-
-    const nextDodges = dodges + 1
-    setDodges(nextDodges)
-    if (nextDodges >= MAX_DODGES) {
-      window.setTimeout(() => setNoGone(true), 260)
-    }
-  }, [dodges, noGone, noPos])
+    },
+    [dodges, noGone, noPos],
+  )
 
   return (
     <motion.div
@@ -296,6 +370,13 @@ export function AskStep({ onYes }: AskStepProps) {
       className="w-full max-w-[460px]"
     >
       <Card ref={cardRef} className="overflow-visible">
+        {/* Reserve the changing counter's corner so the first dodge cannot land
+            under the badge that appears after it. */}
+        <div
+          aria-hidden="true"
+          data-dodge-avoid
+          className="pointer-events-none absolute right-4 top-4 h-[28px] w-[70px] sm:right-5 sm:top-5"
+        />
         <AnimatePresence>
           {dodges > 0 ? (
             <motion.div
@@ -304,7 +385,7 @@ export function AskStep({ onYes }: AskStepProps) {
               exit={{ opacity: 0, scale: 0.85 }}
               transition={{ type: 'spring', stiffness: 380, damping: 24 }}
               data-dodge-avoid
-              className="absolute right-4 top-4 z-20 rounded-full border border-line bg-cream px-3 py-1.5 text-[9px] font-semibold tracking-[0.02em] text-muted shadow-[0_2px_10px_rgba(70,52,38,0.06)] sm:right-5 sm:top-5"
+              className="absolute right-4 top-4 z-20 min-w-[70px] rounded-full border border-line bg-cream px-3 py-1.5 text-center text-[9px] font-semibold tracking-[0.02em] text-muted shadow-[0_2px_10px_rgba(70,52,38,0.06)] sm:right-5 sm:top-5"
             >
               {dodges} {dodges === 1 ? 'dodge' : 'dodges'}
             </motion.div>
@@ -326,7 +407,7 @@ export function AskStep({ onYes }: AskStepProps) {
             </span>
           </h1>
 
-          <div className="mt-3.5 flex min-h-[22px] items-center justify-center" data-dodge-avoid>
+          <div className="mt-3.5 flex min-h-[22px] w-full items-center justify-center" data-dodge-avoid>
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
                 key={subtitle}
@@ -384,10 +465,30 @@ export function AskStep({ onYes }: AskStepProps) {
               transition={{ duration: 0.2 }}
               whileHover={reduceMotion ? undefined : { scale: noScale + 0.035 }}
               whileTap={{ scale: 0.94 }}
-              onPointerEnter={(event) => {
-                if (event.pointerType === 'mouse') {
-                  dodge({ x: event.clientX, y: event.clientY })
-                }
+              onMouseEnter={(event) => {
+                // Ignore the synthetic mouseenter some webviews emit after a
+                // tap, otherwise one touch could burn two dodges.
+                if (performance.now() - lastTouch.current < 800) return
+                dodge({ x: event.clientX, y: event.clientY })
+              }}
+              onPointerDown={(event) => {
+                if (event.pointerType === 'mouse') return
+                lastTouch.current = performance.now()
+                if (event.cancelable) event.preventDefault()
+                dodge({ x: event.clientX, y: event.clientY })
+              }}
+              onTouchStart={(event) => {
+                // Pointer Events cover every supported browser. This is a
+                // fallback for very old WebKit versions that lack them.
+                if ('PointerEvent' in window) return
+                lastTouch.current = performance.now()
+                if (event.cancelable) event.preventDefault()
+                const touch = event.touches[0]
+                dodge(
+                  touch
+                    ? { x: touch.clientX, y: touch.clientY }
+                    : undefined,
+                )
               }}
               onClick={(event) => {
                 event.preventDefault()
@@ -406,7 +507,7 @@ export function AskStep({ onYes }: AskStepProps) {
               }
               aria-label={noLabel}
               data-no-button
-              className={`absolute z-30 flex h-10 w-[96px] items-center justify-center whitespace-nowrap rounded-full border border-line bg-white px-2 text-[11.5px] font-semibold tracking-[-0.01em] text-muted shadow-[0_4px_14px_rgba(70,52,38,0.08)] transition-colors hover:border-coral/30 hover:text-coral ${
+              className={`absolute z-30 flex h-11 w-[96px] touch-manipulation select-none items-center justify-center whitespace-nowrap rounded-full border border-line bg-white px-2 text-[11.5px] font-semibold tracking-[-0.01em] text-muted shadow-[0_4px_14px_rgba(70,52,38,0.08)] transition-colors hover:border-coral/30 hover:text-coral ${
                 noPos ? '' : 'invisible bottom-10 right-6 sm:right-9'
               }`}
             >
