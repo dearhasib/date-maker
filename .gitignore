@@ -12,6 +12,8 @@ vite.config.d.ts
 
 # Environment variables and secrets
 .env
+.env.local
+.env.*.local
 .env.*
 !.env.example
 *.pem

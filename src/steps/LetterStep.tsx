@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, Copy, Heart, Link2, Pencil, Send } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Heart,
+  Link2,
+  MessageCircle,
+  Pencil,
+  Send,
+} from 'lucide-react'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
 import { ShareLinkBox } from '../components/ShareLinkBox'
@@ -10,14 +18,18 @@ import {
   formatTime12h,
   type PlanSelection,
 } from '../lib/date'
+import { sendResponseNotification } from '../lib/notify'
 import { getPlan } from '../lib/plans'
 import { buildReplyUrl } from '../lib/share'
+import { buildWhatsAppReplyUrl, openWhatsAppReply } from '../lib/whatsapp'
 import type { ToastData } from '../components/Toast'
 
 interface LetterStepProps {
   selection: PlanSelection
   senderName: string
   recipientName: string
+  whatsappNumber?: string
+  notificationKey?: string
   onEdit: () => void
   notify: (message: string, tone?: ToastData['tone']) => void
 }
@@ -26,12 +38,16 @@ export function LetterStep({
   selection,
   senderName,
   recipientName,
+  whatsappNumber = '',
+  notificationKey = '',
   onEdit,
   notify,
 }: LetterStepProps) {
   const [copied, setCopied] = useState(false)
   const [showLink, setShowLink] = useState(false)
+  const [autoSent, setAutoSent] = useState(false)
   const copyTimer = useRef<number | undefined>(undefined)
+  const notificationFired = useRef(false)
   const reduceMotion = useReducedMotion()
   const plan = getPlan(selection.plan)
   const dateLabel = formatDateLong(selection.date)
@@ -39,11 +55,51 @@ export function LetterStep({
 
   const addressee = senderName === 'Me' ? 'you' : senderName
   const signer = recipientName === 'you' ? 'Me' : recipientName
+  const notificationRecipient =
+    senderName === 'Me' ? 'the sender' : senderName
 
   const replyUrl = useMemo(
     () => buildReplyUrl(selection, recipientName, senderName),
     [selection, recipientName, senderName],
   )
+
+  const whatsappReplyUrl = useMemo(
+    () =>
+      buildWhatsAppReplyUrl({
+        number: whatsappNumber,
+        senderName,
+        recipientName,
+        selection,
+        replyUrl,
+      }),
+    [whatsappNumber, senderName, recipientName, selection, replyUrl],
+  )
+
+  useEffect(() => {
+    if (notificationFired.current) return
+    notificationFired.current = true
+
+    let active = true
+    void sendResponseNotification({
+      senderName,
+      recipientName,
+      selection,
+      replyUrl,
+      notificationKey,
+    }).then((result) => {
+      if (active && result === 'sent') setAutoSent(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [
+    notificationKey,
+    recipientName,
+    replyUrl,
+    selection,
+    senderName,
+  ])
 
   useEffect(
     () => () => {
@@ -83,6 +139,10 @@ export function LetterStep({
     }
   }
 
+  function handleSendViaWhatsApp() {
+    openWhatsAppReply(whatsappReplyUrl)
+  }
+
   return (
     <motion.div
       key="letter"
@@ -115,6 +175,18 @@ export function LetterStep({
               {plan.label}
             </span>
           </div>
+
+          {autoSent ? (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              role="status"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-sage/40 bg-sage-pale px-3 py-1.5 text-[10.5px] font-semibold text-sage-ink"
+            >
+              <Check size={11} strokeWidth={2.6} />
+              Sent to {notificationRecipient}! 💌
+            </motion.p>
+          ) : null}
 
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -157,14 +229,26 @@ export function LetterStep({
           <div className="mt-5 flex w-full flex-col gap-2.5">
             <motion.button
               type="button"
-              onClick={handleSendBack}
+              onClick={
+                whatsappReplyUrl ? handleSendViaWhatsApp : handleSendBack
+              }
               whileHover={reduceMotion ? undefined : { y: -1.5 }}
               whileTap={{ scale: 0.985 }}
               className="primary-button"
             >
-              <Send size={15} strokeWidth={2.2} />
-              <span>Share the good news</span>
-              <span aria-hidden="true">💌</span>
+              {whatsappReplyUrl ? (
+                <MessageCircle size={15} strokeWidth={2.2} />
+              ) : (
+                <Send size={15} strokeWidth={2.2} />
+              )}
+              <span>
+                {whatsappReplyUrl
+                  ? 'Send Plan via WhatsApp'
+                  : 'Share the good news'}
+              </span>
+              <span aria-hidden="true">
+                {whatsappReplyUrl ? '💬' : '💌'}
+              </span>
             </motion.button>
 
             <motion.button

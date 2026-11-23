@@ -9,7 +9,16 @@ export interface SharedState {
   isReply: boolean
   from: string
   to: string
+  whatsapp: string
+  notificationKey: string
   selection: PlanSelection | null
+}
+
+export interface ProposalLinkOptions {
+  from: string
+  to: string
+  whatsapp?: string
+  notificationKey?: string
 }
 
 function cleanName(value: string | null): string {
@@ -25,6 +34,26 @@ function cleanName(value: string | null): string {
     .slice(0, 40)
     .join('')
     .replace(/[\u200D\uFE0F]+$/u, '')
+}
+
+/**
+ * WhatsApp links require the full international number without punctuation.
+ * Keep whatever the user typed in the composer, but only put a valid number
+ * into the invite URL.
+ */
+export function cleanWhatsAppNumber(
+  value: string | null | undefined,
+): string {
+  const digits = (value ?? '').replace(/\D/g, '')
+  return digits.length >= 8 && digits.length <= 15 ? digits : ''
+}
+
+/** Web3Forms access keys are short, URL-safe identifiers. */
+export function cleanNotificationKey(
+  value: string | null | undefined,
+): string {
+  const key = (value ?? '').trim()
+  return /^[A-Za-z0-9_-]{8,100}$/.test(key) ? key : ''
 }
 
 function readSelection(params: URLSearchParams): PlanSelection | null {
@@ -53,6 +82,8 @@ export function readSharedState(
     isReply,
     from,
     to,
+    whatsapp: cleanWhatsAppNumber(params.get('wa')),
+    notificationKey: cleanNotificationKey(params.get('wf')),
     selection: isReply ? readSelection(params) : null,
   }
 }
@@ -64,13 +95,31 @@ export function getBaseUrl(): string {
   return url.toString()
 }
 
-export function buildProposalUrl(from: string, to: string): string {
+export function isLocalPreview(): boolean {
+  if (typeof window === 'undefined') return false
+  if (window.location.protocol === 'file:') return true
+
+  return ['localhost', '127.0.0.1', '0.0.0.0', '[::1]'].includes(
+    window.location.hostname,
+  )
+}
+
+export function buildProposalUrl({
+  from,
+  to,
+  whatsapp,
+  notificationKey,
+}: ProposalLinkOptions): string {
   const url = new URL(getBaseUrl())
   const sender = cleanName(from) || 'Me'
   const recipient = cleanName(to) || 'you'
+  const phone = cleanWhatsAppNumber(whatsapp)
+  const key = cleanNotificationKey(notificationKey)
 
   url.searchParams.set('from', sender)
   url.searchParams.set('to', recipient)
+  if (phone) url.searchParams.set('wa', phone)
+  if (key) url.searchParams.set('wf', key)
   return url.toString()
 }
 

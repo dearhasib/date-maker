@@ -87,10 +87,10 @@ function escapeICS(value: string): string {
     .replace(/;/g, '\\;')
 }
 
-export function downloadCalendarFile(
+export function buildCalendarFile(
   selection: PlanSelection,
   withName: string,
-): void {
+): string {
   const plan = getPlan(selection.plan)
   const start = toICSDate(selection.date, selection.time)
   const [year, month, day] = selection.date.split('-').map(Number)
@@ -104,7 +104,7 @@ export function downloadCalendarFile(
     .replace(/[-:]/g, '')
     .replace(/\.\d{3}/, '')
 
-  const lines = [
+  return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//A Tiny Ask//Date Planner//EN',
@@ -120,9 +120,14 @@ export function downloadCalendarFile(
     )}`,
     'END:VEVENT',
     'END:VCALENDAR',
-  ]
+  ].join('\r\n')
+}
 
-  const blob = new Blob([lines.join('\r\n')], {
+export function downloadCalendarFile(
+  selection: PlanSelection,
+  withName: string,
+): void {
+  const blob = new Blob([buildCalendarFile(selection, withName)], {
     type: 'text/calendar;charset=utf-8',
   })
   const href = URL.createObjectURL(blob)
