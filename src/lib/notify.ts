@@ -1,11 +1,18 @@
 import {
-  buildCalendarFile,
   formatDateLongWithYear,
   formatTime12h,
   type PlanSelection,
 } from './date'
+import {
+  buildEmailCalendar,
+  buildEmailMessage,
+  buildEmailSubject,
+} from './email'
 import { getPlan } from './plans'
-import { cleanNotificationKey } from './share'
+import {
+  cleanEmailAddress,
+  cleanNotificationKey,
+} from './share'
 
 const DISCORD_WEBHOOK_URL = getDiscordWebhookUrl(
   import.meta.env.VITE_DISCORD_WEBHOOK_URL,
@@ -24,6 +31,7 @@ interface ResponseNotificationInput {
   recipientName: string
   selection: PlanSelection
   replyUrl: string
+  emailAddress?: string
   notificationKey?: string
 }
 
@@ -89,6 +97,52 @@ async function postJson(
   }
 }
 
+async function postToFormSubmit(
+  emailAddress: string,
+  payload: {
+    subject: string
+    message: string
+  },
+): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), 8000)
+  const endpoint = `https://formsubmit.co/ajax/${encodeURIComponent(
+    emailAddress,
+  )}`
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        name: 'A Tiny Ask',
+        _subject: payload.subject,
+        _template: 'table',
+        _captcha: 'false',
+        message: payload.message,
+      }),
+      signal: controller.signal,
+      keepalive: true,
+    })
+
+    if (!response.ok) return false
+
+    const result = (await response.json().catch(() => null)) as {
+      success?: unknown
+    } | null
+
+    // FormSubmit returns success as a string ("true" / "false").
+    return Boolean(result && String(result.success) === 'true')
+  } catch {
+    return false
+  } finally {
+    window.clearTimeout(timer)
+  }
+}
+
 async function postToWeb3Forms(
   accessKey: string,
   payload: {
@@ -111,7 +165,6 @@ async function postToWeb3Forms(
         subject: payload.subject,
         from_name: 'A Tiny Ask 💌',
         name: 'A Tiny Ask',
-        email: 'noreply@example.com',
         message: payload.message,
       }),
       signal: controller.signal,
@@ -129,29 +182,6 @@ async function postToWeb3Forms(
   } finally {
     window.clearTimeout(timer)
   }
-}
-
-function buildWeb3FormsMessage(
-  input: ResponseNotificationInput,
-  calendar: string,
-): string {
-  const plan = getPlan(input.selection.plan)
-  const dateLabel = formatDateLongWithYear(input.selection.date)
-  const timeLabel = formatTime12h(input.selection.time)
-
-  return [
-    'A date has been sealed! 💌',
-    '',
-    `Accepted by (to): ${input.recipientName}`,
-    `Invitation from (from): ${input.senderName}`,
-    `Day: ${dateLabel}`,
-    `Time: ${timeLabel}`,
-    `Plan: ${plan.emoji} ${plan.label}`,
-    `Confirmed view: ${input.replyUrl}`,
-    '',
-    'Calendar (.ics):',
-    calendar,
-  ].join('\n')
 }
 
 function buildDiscordPayload(
@@ -217,9 +247,10 @@ export function isNotificationConfigured(): boolean {
 }
 
 /**
- * Sends the sealed plan to the optional Discord/Web3Forms destinations.
- * Never throws: the recipient's letter must stay usable when offline, when
- * CORS blocks a webhook, or when no notification channel is configured.
+ * Sends the sealed plan to the optional Discord, Web3Forms, and zero-setup
+ * FormSubmit email destinations. Never throws: the recipient's letter must
+ * stay usable when offline, when CORS blocks a request, or when no channel is
+ * configured.
  */
 export async function sendResponseNotification(
   input: ResponseNotificationInput,
@@ -227,6 +258,7 @@ export async function sendResponseNotification(
   let dedupeKey = ''
 
   try {
+    const directEmail = cleanEmailAddress(input.emailAddress)
     const web3Keys = Array.from(
       new Set(
         [
@@ -236,12 +268,15 @@ export async function sendResponseNotification(
       ),
     )
 
-    if (!DISCORD_WEBHOOK_URL && web3Keys.length === 0) return 'skipped'
+    if (!DISCORD_WEBHOOK_URL && web3Keys.length === 0 && !directEmail) {
+      return 'skipped'
+    }
 
     dedupeKey = [
       input.replyUrl,
       DISCORD_WEBHOOK_URL ? 'discord' : '',
       ...web3Keys,
+      directEmail.toLowerCase(),
     ].join('|')
 
     if (
@@ -253,13 +288,9 @@ export async function sendResponseNotification(
 
     inFlightNotifications.add(dedupeKey)
 
-    const dateLabel = formatDateLongWithYear(input.selection.date)
-    const calendar = buildCalendarFile(
-      input.selection,
-      input.recipientName === 'you' ? 'your person' : input.recipientName,
-    )
-    const subject = `💌 ${input.recipientName} said yes — ${dateLabel}`
-    const message = buildWeb3FormsMessage(input, calendar)
+    const calendar = buildEmailCalendar(input)
+    const subject = buildEmailSubject(input)
+    const message = buildEmailMessage(input, calendar)
 
     const requests: Promise<boolean>[] = []
 
@@ -272,6 +303,10 @@ export async function sendResponseNotification(
     web3Keys.forEach((key) => {
       requests.push(postToWeb3Forms(key, { subject, message }))
     })
+
+    if (directEmail) {
+      requests.push(postToFormSubmit(directEmail, { subject, message }))
+    }
 
     const results = await Promise.all(requests)
     const sent = results.some(Boolean)

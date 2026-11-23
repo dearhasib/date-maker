@@ -10,6 +10,7 @@ export interface SharedState {
   from: string
   to: string
   whatsapp: string
+  email: string
   notificationKey: string
   selection: PlanSelection | null
 }
@@ -18,6 +19,7 @@ export interface ProposalLinkOptions {
   from: string
   to: string
   whatsapp?: string
+  email?: string
   notificationKey?: string
 }
 
@@ -56,6 +58,22 @@ export function cleanNotificationKey(
   return /^[A-Za-z0-9_-]{8,100}$/.test(key) ? key : ''
 }
 
+/** Keep only a syntactically valid address that is safe to put in a URL. */
+export function cleanEmailAddress(
+  value: string | null | undefined,
+): string {
+  const email = (value ?? '').trim()
+  if (
+    email.length === 0 ||
+    email.length > 254 ||
+    /[\u0000-\u001F\u007F]/.test(email)
+  ) {
+    return ''
+  }
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? email : ''
+}
+
 function readSelection(params: URLSearchParams): PlanSelection | null {
   const date = params.get('date')
   const time = params.get('time')
@@ -83,6 +101,7 @@ export function readSharedState(
     from,
     to,
     whatsapp: cleanWhatsAppNumber(params.get('wa')),
+    email: cleanEmailAddress(params.get('email')),
     notificationKey: cleanNotificationKey(params.get('wf')),
     selection: isReply ? readSelection(params) : null,
   }
@@ -108,17 +127,20 @@ export function buildProposalUrl({
   from,
   to,
   whatsapp,
+  email,
   notificationKey,
 }: ProposalLinkOptions): string {
   const url = new URL(getBaseUrl())
   const sender = cleanName(from) || 'Me'
   const recipient = cleanName(to) || 'you'
   const phone = cleanWhatsAppNumber(whatsapp)
+  const address = cleanEmailAddress(email)
   const key = cleanNotificationKey(notificationKey)
 
   url.searchParams.set('from', sender)
   url.searchParams.set('to', recipient)
   if (phone) url.searchParams.set('wa', phone)
+  if (address) url.searchParams.set('email', address)
   if (key) url.searchParams.set('wf', key)
   return url.toString()
 }

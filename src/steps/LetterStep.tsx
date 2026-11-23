@@ -5,6 +5,7 @@ import {
   Copy,
   Heart,
   Link2,
+  Mail,
   MessageCircle,
   Pencil,
   Send,
@@ -18,6 +19,7 @@ import {
   formatTime12h,
   type PlanSelection,
 } from '../lib/date'
+import { buildMailtoUrl } from '../lib/email'
 import { sendResponseNotification } from '../lib/notify'
 import { getPlan } from '../lib/plans'
 import { buildReplyUrl } from '../lib/share'
@@ -29,6 +31,7 @@ interface LetterStepProps {
   senderName: string
   recipientName: string
   whatsappNumber?: string
+  emailAddress?: string
   notificationKey?: string
   onEdit: () => void
   notify: (message: string, tone?: ToastData['tone']) => void
@@ -39,6 +42,7 @@ export function LetterStep({
   senderName,
   recipientName,
   whatsappNumber = '',
+  emailAddress = '',
   notificationKey = '',
   onEdit,
   notify,
@@ -75,6 +79,17 @@ export function LetterStep({
     [whatsappNumber, senderName, recipientName, selection, replyUrl],
   )
 
+  const mailtoUrl = useMemo(
+    () =>
+      buildMailtoUrl(emailAddress, {
+        senderName,
+        recipientName,
+        selection,
+        replyUrl,
+      }),
+    [emailAddress, senderName, recipientName, selection, replyUrl],
+  )
+
   useEffect(() => {
     if (notificationFired.current) return
     notificationFired.current = true
@@ -85,6 +100,7 @@ export function LetterStep({
       recipientName,
       selection,
       replyUrl,
+      emailAddress,
       notificationKey,
     }).then((result) => {
       if (active && result === 'sent') setAutoSent(true)
@@ -94,6 +110,7 @@ export function LetterStep({
       active = false
     }
   }, [
+    emailAddress,
     notificationKey,
     recipientName,
     replyUrl,
@@ -250,6 +267,14 @@ export function LetterStep({
                 {whatsappReplyUrl ? '💬' : '💌'}
               </span>
             </motion.button>
+
+            {mailtoUrl ? (
+              <a href={mailtoUrl} className="secondary-button">
+                <Mail size={14} strokeWidth={2} />
+                <span>Send via Email App</span>
+                <span aria-hidden="true">✉️</span>
+              </a>
+            ) : null}
 
             <motion.button
               type="button"

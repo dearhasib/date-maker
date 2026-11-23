@@ -106,6 +106,7 @@ export default function App() {
                 senderName={shared.from}
                 recipientName={shared.to}
                 whatsappNumber={shared.whatsapp}
+                emailAddress={shared.email}
                 notificationKey={shared.notificationKey}
                 onEdit={() => setStep('plan')}
                 notify={notify}

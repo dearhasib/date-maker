@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import { copyToClipboard, shareOrCopy } from '../lib/clipboard'
 import { isNotificationConfigured } from '../lib/notify'
 import {
   buildProposalUrl,
+  cleanEmailAddress,
   cleanNotificationKey,
   cleanWhatsAppNumber,
   isLocalPreview,
@@ -38,9 +39,12 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
   const [to, setTo] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [useWhatsappReply, setUseWhatsappReply] = useState(false)
+  const [email, setEmail] = useState('')
+  const [useEmailNotify, setUseEmailNotify] = useState(false)
   const [notificationKey, setNotificationKey] = useState('')
   const [generated, setGenerated] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const canNativeShare =
     typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
@@ -48,11 +52,20 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
   const recipientLabel = useMemo(() => to.trim() || 'you', [to])
   const localPreview = useMemo(() => isLocalPreview(), [])
   const whatsappDigits = cleanWhatsAppNumber(whatsapp)
+  const emailAddress = cleanEmailAddress(email)
   const notificationKeyIsValid =
     !notificationKey.trim() || Boolean(cleanNotificationKey(notificationKey))
   const canGenerate =
     notificationKeyIsValid &&
-    (!useWhatsappReply || Boolean(whatsappDigits))
+    (!useWhatsappReply || Boolean(whatsappDigits)) &&
+    (!useEmailNotify || Boolean(emailAddress))
+
+  useLayoutEffect(() => {
+    // The compose form can be scrolled on a small phone. Start the success
+    // view (or the return to editing) at the top so the heading and QR are
+    // never stranded above the scroll position.
+    if (dialogRef.current) dialogRef.current.scrollTop = 0
+  }, [generated])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -78,6 +91,7 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
         from,
         to,
         whatsapp: useWhatsappReply ? whatsapp : '',
+        email: useEmailNotify ? email : '',
         notificationKey,
       }),
     )
@@ -115,11 +129,14 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
 
   return (
     <motion.div
+      ref={dialogRef}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-contain bg-[#2c211a]/20 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] backdrop-blur-[6px] sm:items-center sm:py-6"
+      className={`fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto overscroll-contain bg-[#2c211a]/20 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] backdrop-blur-[6px] sm:py-6 ${
+        generated ? '' : 'sm:items-center'
+      }`}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -134,7 +151,9 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-        className="relative my-auto w-full max-w-[420px] rounded-[28px] border border-white/70 bg-white p-6 text-left shadow-[0_30px_80px_rgba(60,40,25,0.18)] sm:p-7"
+        className={`relative w-full max-w-[420px] rounded-[28px] border border-white/70 bg-white p-6 text-left shadow-[0_30px_80px_rgba(60,40,25,0.18)] sm:p-7 ${
+          generated ? 'my-0' : 'my-auto'
+        }`}
         onPointerDown={(event) => event.stopPropagation()}
       >
         <button
@@ -292,9 +311,59 @@ export function ShareModal({ onClose, notify }: ShareModalProps) {
                       </label>
                     ) : null}
 
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-white px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={useEmailNotify}
+                        onChange={(event) =>
+                          setUseEmailNotify(event.target.checked)
+                        }
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
+                      />
+                      <span>
+                        <span className="block text-[10.5px] font-semibold text-ink">
+                          Direct Email Notify
+                        </span>
+                        <span className="mt-0.5 block text-[10px] leading-relaxed text-muted/80">
+                          Get the confirmed plan automatically. No account or API
+                          key needed.
+                        </span>
+                      </span>
+                    </label>
+
+                    {useEmailNotify ? (
+                      <label className="block">
+                        <span className="mb-1.5 block text-[10.5px] font-semibold text-ink">
+                          Your Email Address (optional)
+                        </span>
+                        <input
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          spellCheck={false}
+                          value={email}
+                          onChange={(event) =>
+                            setEmail(event.target.value.slice(0, 254))
+                          }
+                          placeholder="you@example.com"
+                          className="min-h-[44px] w-full rounded-xl border border-line bg-white px-3 text-[16px] font-medium text-ink outline-none transition placeholder:text-muted/45 focus:border-coral/60 focus:shadow-[0_0_0_4px_rgba(232,93,74,0.08)] sm:text-[12px]"
+                        />
+                        <span className="mt-1 block text-[10px] leading-relaxed text-muted/80">
+                          Sends the exact plan to your inbox. FormSubmit asks you
+                          to confirm the address once before the first email.
+                          The address is visible in the invite link.
+                        </span>
+                        {!emailAddress ? (
+                          <span className="mt-1 block text-[10px] font-medium text-coral">
+                            Enter a valid email address.
+                          </span>
+                        ) : null}
+                      </label>
+                    ) : null}
+
                     <p className="text-[9.5px] leading-relaxed text-muted/70">
-                      Optional settings travel inside the invite link. Only add a
-                      notification key or phone number you are comfortable
+                      Optional settings travel inside the invite link. Only add an
+                      email, notification key, or phone number you are comfortable
                       sharing with the recipient.
                     </p>
                   </div>

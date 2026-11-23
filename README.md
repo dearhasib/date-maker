@@ -1,6 +1,6 @@
 # A Tiny Ask 💌
 
-An interactive, single-page romantic **date proposal and planner**. It starts with a playful question, a “No” button that keeps escaping, a confetti-filled confirmation, a date planner, and a personalized letter. Invites can be shared as a link or a downloadable QR card, and the chosen plan can come back automatically through Discord, email, or a pre-filled WhatsApp message.
+An interactive, single-page romantic **date proposal and planner**. It starts with a playful question, a “No” button that keeps escaping, a confetti-filled confirmation, a date planner, and a personalized letter. Invites can be shared as a link or a downloadable QR card, and the chosen plan can come back automatically through a direct email address, Discord/Web3Forms, or a pre-filled WhatsApp message.
 
 The app itself is a static frontend: no backend, database, account system, or tracking. Optional notification requests go directly from the browser to the channels you configure.
 
@@ -12,7 +12,7 @@ The app itself is a static frontend: no backend, database, account system, or tr
 2. **The confirmation** — heart-and-petal confetti, a blooming flower, and a “Yay — it's a date” moment.
 3. **The plan** — pick a day, a time, and one of six activities: coffee, a movie, dinner, a walk in the park, drinks, or a surprise.
 4. **The letter** — a personalized note with the date, time, and activity laid out in a sealed-letter card.
-5. **The response** — if notifications are configured, the plan is delivered on **Seal it with a letter 💌** and a subtle “Sent to …” badge appears. A pre-filled WhatsApp button can deliver it with zero setup. The response link, Web Share sheet, clipboard, and selectable link box remain as fallbacks.
+5. **The response** — if a direct email address or another notification channel is configured, the plan is delivered on **Seal it with a letter 💌** and a subtle “Sent to …” badge appears. A pre-filled WhatsApp button can deliver it with zero setup, and a **Send via Email App ✉️** fallback opens the recipient’s mail client. The response link, Web Share sheet, clipboard, and selectable link box remain as fallbacks.
 6. **The QR invite** — the proposal composer renders a themed QR code for every generated invite. Download it as a framed high-resolution PNG or share the image/link from the phone’s share sheet.
 
 You can create a custom proposal link from the footer and choose the sender and recipient names. Names default to the generic placeholders **Me** and **you**, producing “Dear you,” and “— Me 💌” in the letter.
@@ -30,8 +30,10 @@ You can create a custom proposal link from the footer and choose the sender and 
 - Themed QR code for every proposal, generated entirely in the browser
 - High-resolution QR PNG download with a “Scan me 💌” frame for printing or sharing as an image
 - QR/link sharing through native file sharing when supported, with URL and clipboard fallbacks
+- Zero-setup direct email delivery through FormSubmit, with no account or API key
 - Optional automatic response delivery to Discord and Web3Forms email on seal
 - Optional 1-click WhatsApp reply pre-filled with the date, time, plan, and confirmed link
+- **Send via Email App ✉️** fallback pre-filled with the exact plan and confirmed link
 - Native Web Share, Clipboard API, legacy copy fallbacks, and a visible selectable link when both are blocked
 - Touch, mouse, and pointer dodging for the “No” button at small screen sizes
 - Keyboard focus states, safe-area spacing, and reduced-motion support
@@ -47,6 +49,8 @@ You can create a custom proposal link from the footer and choose the sender and 
 | Framer Motion | Screen transitions and micro-interactions |
 | canvas-confetti | Custom petal and heart confetti |
 | qrcode | Client-side QR generation and canvas export |
+| FormSubmit | Optional zero-key email delivery |
+| Discord / Web3Forms | Optional owner-configured notifications |
 | Lucide React | Interface icons |
 | Fontsource | Self-hosted variable fonts |
 
@@ -108,7 +112,7 @@ The build output is written to `dist/`. `npm run preview` serves that production
 
 1. Open the **publicly deployed** app, not a `localhost` URL, and select **Create your own proposal** in the footer.
 2. Enter the two names. If either field is left blank, the app uses **Me** and **you**.
-3. Optional: open **Instant Notify Setup**. You can add a Web3Forms access key, enable **Send the plan directly to my WhatsApp**, and enter a number with its country code.
+3. Optional: open **Instant Notify Setup**. You can enable **Direct Email Notify** and enter your email address, add a Web3Forms access key, and enable **Send the plan directly to my WhatsApp** with a number and country code.
 4. Select **Create proposal link**.
 
 ### 2. Share it
@@ -118,20 +122,21 @@ The build output is written to `dist/`. `npm run preview` serves that production
 - **Download QR Image 📥:** saves a `1080 × 1320` PNG with a clean “Scan me 💌” frame. It is suitable for WhatsApp, Messenger, Instagram, email, or printing.
 - **Share QR / Link:** on supported phones, this shares the QR PNG itself through the native share sheet. If file sharing is unavailable, it falls back to sharing the invite URL, then to the clipboard.
 
-The QR code and link carry the optional WhatsApp/Web3Forms settings. Only add settings you are comfortable sharing with the recipient.
+The QR code and link carry the optional email, WhatsApp, and Web3Forms settings. Only add settings you are comfortable sharing with the recipient.
 
 ### 3. The recipient answers
 
 1. They open the public link and tap **YES**.
 2. They choose the day, time, and activity.
 3. They select **Seal it with a letter 💌**.
-4. If notifications are configured, the plan is sent immediately and a **Sent to [sender]! 💌** badge appears.
+4. If a direct email address or another notification channel is configured, the plan is sent immediately and a **Sent to [sender]! 💌** badge appears.
 5. If a WhatsApp number was included, the primary button becomes **Send Plan via WhatsApp 💬**. It opens WhatsApp with the full plan and confirmed link already typed; they only tap Send.
-6. Without a WhatsApp number, the primary button is **Share the good news 💌**, using native sharing (including WhatsApp, Messenger, email, and other share targets), clipboard fallbacks, and the visible link box.
+6. With an email address included, **Send via Email App ✉️** opens their mail client with the exact plan and confirmed link pre-filled, even if the background request was blocked.
+7. Without a WhatsApp number, the primary button is **Share the good news 💌**, using native sharing (including WhatsApp, Messenger, email, and other share targets), clipboard fallbacks, and the visible link box.
 
 ### 4. The sender receives the answer
 
-- Discord/email notifications include the recipient name, original sender, full day, time, activity, confirmed view link, and `.ics` calendar details.
+- Direct email, Discord, and Web3Forms notifications include the recipient name, original sender, full day, time, activity, confirmed view link, and `.ics` calendar details.
 - The confirmed view shows the plan and offers an **Add to calendar** `.ics` download.
 - If no automatic channel is configured, the recipient can send the response link or the WhatsApp message manually.
 
@@ -139,6 +144,7 @@ The QR code and link carry the optional WhatsApp/Web3Forms settings. Only add se
 
 ```text
 https://your-site.example/?from=Me&to=you
+https://your-site.example/?from=Me&to=you&email=YOUR_EMAIL_ADDRESS
 https://your-site.example/?from=Me&to=you&wa=YOUR_NUMBER_WITH_COUNTRY_CODE&wf=YOUR_WEB3FORMS_KEY
 ```
 
@@ -154,6 +160,7 @@ https://your-site.example/?reply=1&from=you&to=Me&date=2026-12-24&time=19%3A30&p
 | --- | --- |
 | `from` | Sender name on a proposal link; responder name on a response link |
 | `to` | Recipient name on a proposal link; original sender on a response link |
+| `email` | Optional notification address for zero-setup FormSubmit email delivery |
 | `wa` | Optional WhatsApp number as digits with the country code, no punctuation |
 | `wf` | Optional Web3Forms access key for a per-invite email notification |
 | `reply=1` | Opens the sender-facing response view |
@@ -165,7 +172,19 @@ Names are normalized, trimmed, stripped of control characters, and limited to 40
 
 ## Optional instant notifications
 
-Both channels are **off by default**. If neither an environment variable nor a per-invite Web3Forms key is configured, sealing the letter makes no notification request. The letter still works normally.
+Direct email is configured per invite in the composer. Discord and Web3Forms are optional owner-configured channels and are **off by default**. If none of the direct email, environment variables, or a per-invite Web3Forms key is configured, sealing the letter makes no notification request. The letter still works normally.
+
+### Direct email — no API key or account
+
+1. Open **Instant Notify Setup** and enable **Direct Email Notify**.
+2. Enter the **Your Email Address (optional)** value and generate the invite.
+3. The address is encoded in the invite URL as the `email` parameter. When the recipient seals the letter, the browser sends a background AJAX request to FormSubmit.
+4. FormSubmit sends a **one-time activation email** to that address the first time it is used. Click the activation link; after that, the confirmed plan arrives automatically. While activation is pending, the app may not show the sent badge. The **Send via Email App ✉️** fallback works immediately if the background request is blocked or activation is pending.
+5. The email contains the recipient and sender names, exact day and time, selected plan, confirmed view link, and `.ics` calendar details.
+
+This flow needs no account, API key, or environment variable. It is a third-party delivery service: the email address is visible in the invite link, and the names/plan details are sent to [FormSubmit](https://formsubmit.co/) for delivery. Treat the invite link as private.
+
+### Owner-configured channels
 
 | Variable | Purpose |
 | --- | --- |
@@ -191,25 +210,25 @@ Copy `.env.example` to `.env.local` for local development, or add the variables 
 
 `VITE_*` values are compiled into the public browser bundle. A Discord webhook URL or Web3Forms key configured this way is **not secret**; someone who inspects the deployed JavaScript can extract it. Use a dedicated webhook in a private channel, restrict/rotate the Web3Forms key, and never commit real values to Git. If you need stronger secrecy than a static client can provide, modify the app to send through a server-side proxy; this project intentionally stays static and does not include one.
 
-The optional `wa` and `wf` values are also visible inside the invite link. The WhatsApp number is shown to the recipient, and a per-invite Web3Forms key can be read by anyone with the link.
+The optional `email`, `wa`, and `wf` values are also visible inside the invite link. The email address and WhatsApp number are shown to the recipient, and a per-invite Web3Forms key can be read by anyone with the link.
 
 ## Privacy and security
 
 - **No backend and no accounts.** The static app has no server-side storage.
 - **No analytics or tracking scripts.**
-- **No hardcoded secrets, webhook URLs, phone numbers, or personal contact details.** `.env` and `.env.local` are ignored; only `.env.example` is committed.
-- **Notifications are opt-in.** Names and plan details leave the browser only when Discord, Web3Forms, or a per-invite notification key is configured. Those requests go directly to the configured endpoint.
-- **No third-party runtime requests for fonts, icons, or QR assets.** The QR library is bundled. Optional notification requests are the exception.
-- **Everything is encoded in the URL.** Proposal links contain the names and optional `wa`/`wf` settings. Response links contain the date, time, and activity.
+- **No hardcoded secrets, webhook URLs, phone numbers, personal email addresses, or personal contact details.** `.env` and `.env.local` are ignored; only `.env.example` is committed. The composer’s address placeholder is a generic example, not an inbox.
+- **Notifications are opt-in.** Names and plan details leave the browser only when a direct email address, Discord, Web3Forms, or a per-invite notification key is configured. Direct email goes to FormSubmit; other requests go directly to the configured endpoint.
+- **No third-party runtime requests for fonts, icons, or QR assets.** The QR library is bundled. Optional FormSubmit/Discord/Web3Forms requests are the exception.
+- **Everything is encoded in the URL.** Proposal links contain the names and optional `email`/`wa`/`wf` settings. Response links contain the date, time, and activity.
 - **Treat share links as private.** Anyone with a link can read the details encoded inside it, so only send it to the intended person.
 - **Calendar files are generated locally** when the sender selects **Add to calendar**.
-- **No `localStorage`, cookies, or database.** Notification keys and numbers travel in the invite URL, not persistent browser storage.
+- **No `localStorage`, cookies, or database.** Notification addresses, keys, and numbers travel in the invite URL, not persistent browser storage.
 
-See the security note above before enabling Discord or Web3Forms notifications on a public deployment.
+See the security note above before enabling FormSubmit, Discord, or Web3Forms notifications on a public deployment.
 
 ## Deploy it yourself
 
-This is a static Vite app, so it works on any static host. No environment variables, server functions, or database setup are required. Environment variables are only needed if you want automatic Discord/email notifications.
+This is a static Vite app, so it works on any static host. No environment variables, server functions, or database setup are required. Direct email needs only the address entered in the composer; environment variables are only needed for owner-configured Discord/Web3Forms notifications.
 
 **Do not share the `localhost` URL with the recipient.** Deploy first, then share the public deployment URL.
 
@@ -272,7 +291,7 @@ date-maker/
 ├─ src/
 │  ├─ components/     # Card, flower, share modal, QR invite, link box, toast
 │  ├─ lib/            # URL sharing, date formatting, plans, clipboard,
-│  │                  # notification delivery, WhatsApp reply helpers
+│  │                  # email/notification delivery, WhatsApp reply helpers
 │  ├─ steps/          # Ask, confirmation, planner, letter, reply screens
 │  ├─ App.tsx         # Flow state and page shell
 │  ├─ index.css       # Design tokens, picker styles, shared component styles
@@ -299,12 +318,13 @@ date-maker/
 - **Copy and letter wording:** edit the relevant screen in `src/steps/`.
 - **Default names:** the `Me` and `you` fallbacks live in `src/lib/share.ts`.
 - **QR frame and label:** edit `src/components/QrInvite.tsx`.
-- **Notification formatting:** edit `src/lib/notify.ts`.
+- **Email subject/body and mail-client fallback:** edit `src/lib/email.ts`.
+- **Discord/Web3Forms/FormSubmit delivery:** edit `src/lib/notify.ts`.
 - **WhatsApp message:** edit `src/lib/whatsapp.ts`.
 
 ## Browser support
 
-The app is designed for current iOS Safari, Android browsers, desktop Chrome, Edge, Firefox, and Safari, plus common in-app browsers. Clipboard access, native sharing, QR file sharing, and WhatsApp handoff depend on browser support and permissions; when sharing is blocked, the app falls back to legacy copy methods and finally a visible, selectable link box. QR generation uses the browser canvas and works offline after the app loads. Automatic notification delivery is best-effort: if the network, CORS, or an endpoint blocks the request, the letter remains usable and no false success badge is shown.
+The app is designed for current iOS Safari, Android browsers, desktop Chrome, Edge, Firefox, and Safari, plus common in-app browsers. Clipboard access, native sharing, QR file sharing, WhatsApp handoff, and `mailto:` delivery depend on browser/device support and permissions; when sharing is blocked, the app falls back to legacy copy methods and finally a visible, selectable link box. QR generation uses the browser canvas and works offline after the app loads. Automatic notification delivery is best-effort: if the network, CORS, a FormSubmit activation step, or an endpoint blocks delivery, the letter remains usable, the email-app fallback stays available, and no false success badge is shown.
 
 ---
 
